@@ -1,9 +1,17 @@
 # Используем официальный Python образ
 FROM python:3.11-slim
 
-# Устанавливаем системные зависимости
+# Устанавливаем системные зависимости для PyAV и ffmpeg
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    pkg-config \
+    libavformat-dev \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavutil-dev \
+    libswscale-dev \
+    libswresample-dev \
+    libavfilter-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Устанавливаем рабочую директорию

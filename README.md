@@ -164,16 +164,18 @@ curl -X POST "http://localhost:8000/split" \
 
 ## Деплой на Railway
 
-### Метод 1: Через GitHub
+### Метод 1: Через GitHub (Рекомендуется)
 
 1. Загрузите код в GitHub репозиторий
 2. Зайдите на [Railway](https://railway.app)
 3. Нажмите "New Project" → "Deploy from GitHub repo"
 4. Выберите ваш репозиторий
-5. Railway автоматически определит Python проект и создаст Dockerfile
+5. Railway автоматически определит Python проект и использует ваш Dockerfile
 6. Настройте переменные окружения в настройках проекта:
    - `WHISPER_MODEL`: `small` (или другую модель)
    - `COMPUTE_TYPE`: `int8`
+
+**Важно:** Проект уже содержит исправленный Dockerfile с необходимыми системными зависимостями для PyAV.
 
 ### Метод 2: Через Railway CLI
 
