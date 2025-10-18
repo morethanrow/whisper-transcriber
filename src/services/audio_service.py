@@ -65,7 +65,8 @@ class AudioService:
                 "ffmpeg", "-i", input_path,
                 "-ss", str(start_time),
                 "-t", str(end_time - start_time),
-                "-c", "copy",
+                "-c:a", "libmp3lame",  # Перекодируем в MP3
+                "-b:a", "128k",  # Битрейт 128kbps
                 "-y",  # Перезаписывать файл без подтверждения
                 segment_path
             ]
@@ -75,6 +76,13 @@ class AudioService:
                 segments.append(segment_path)
             else:
                 print(f"Failed to create segment {i+1}: {result.stderr}")
+                # Удаляем частично созданный файл
+                if os.path.exists(segment_path):
+                    os.unlink(segment_path)
+                raise Exception(f"FFmpeg failed to create segment {i+1}: {result.stderr}")
+        
+        if not segments:
+            raise Exception("Failed to create any audio segments")
         
         return segments
     
@@ -147,6 +155,10 @@ class AudioService:
             
             for i, segment_path in enumerate(segment_paths):
                 try:
+                    # Проверяем, что сегмент был создан успешно
+                    if not os.path.exists(segment_path):
+                        raise Exception(f"Segment file {segment_path} was not created")
+                    
                     segment_result = self.transcribe_segment(segment_path, language)
                     
                     # Объединяем результаты
@@ -159,6 +171,9 @@ class AudioService:
                         detected_language = segment_result["language"]
                         language_probability = segment_result["language_probability"]
                     
+                except Exception as e:
+                    print(f"Failed to transcribe segment {i+1}: {str(e)}")
+                    raise Exception(f"Failed to transcribe segment {i+1}: {str(e)}")
                 finally:
                     # Удаляем временный файл сегмента (если это не исходный файл)
                     if segment_path != file_path and os.path.exists(segment_path):
