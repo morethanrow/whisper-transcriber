@@ -1,16 +1,18 @@
-# Whisper Transcription API
+# Audio Transcription Service
 
-Бесплатный API для транскрибации аудио с помощью open-source модели Whisper от OpenAI. Проект использует библиотеку `faster-whisper` для быстрой работы на CPU и полностью работает локально без обращения к платным API.
+Профессиональный сервис для транскрибации аудио файлов с помощью open-source модели Whisper от OpenAI. Проект использует библиотеку `faster-whisper` для быстрой работы на CPU и полностью работает локально без обращения к платным API.
 
 ## Возможности
 
 - 🎵 **Транскрибация аудио** - преобразование аудиофайлов в текст
-- 👥 **Диаризация** - разделение речи на говорящих (speaker diarization)
-- 🔗 **Комбинированная обработка** - транскрибация с определением говорящих
-- ✂️ **Разделение аудио** - нарезка больших файлов на части с помощью ffmpeg
+- ✂️ **Автоматическая нарезка** - большие файлы автоматически нарезаются на 10-минутные сегменты
+- 📝 **Структурированный текст** - результат разделяется на логические параграфы
+- 📅 **Метаданные** - включение даты и времени записи в результат
+- 💾 **Сохранение результатов** - автоматическое сохранение результатов тестов в JSON
 - 🌍 **Многоязычность** - поддержка различных языков (по умолчанию русский)
 - 🚀 **Готов к деплою** - оптимизирован для Railway и других облачных платформ
 - 💰 **Полностью бесплатно** - никаких платных API, все работает локально
+- 🔗 **N8N совместимость** - готов для интеграции с n8n через API
 
 ## API Эндпоинты
 
@@ -23,154 +25,109 @@
   "ok": true,
   "model": "small",
   "compute_type": "int8",
-  "diarization_available": true
+  "test_results_dir": "/path/to/test_result"
 }
 ```
 
 ### POST /transcribe
-Транскрибация аудиофайла.
+Транскрибация аудиофайла с автоматической нарезкой больших файлов.
 
 **Параметры:**
 - `file` (multipart/form-data) - аудиофайл для транскрибации
 - `language` (form-data) - язык для распознавания (по умолчанию "ru")
+- `save_result` (form-data) - сохранять ли результат в папку test_result (по умолчанию true)
 
 **Ответ:**
 ```json
 {
-  "success": true,
-  "text": "Распознанный текст...",
-  "segments": [
-    {
-      "start": 0.0,
-      "end": 5.2,
-      "text": "Первая часть текста"
-    }
-  ],
-  "language": "ru",
-  "language_probability": 0.99,
-  "duration": 30.5
+  "info": {
+    "filename": "2025-10-18_20-01-11_audio_file.mp3",
+    "recorded_at": "2025-10-18T20:01:11",
+    "duration_sec": 34.58,
+    "model": "whisper-small:int8"
+  },
+  "result": {
+    "status": "ok",
+    "language": "ru",
+    "text": "Полный текст транскрипции одной строкой...",
+    "paragraphs": [
+      "Первый параграф...",
+      "Второй параграф...",
+      "Третий параграф..."
+    ]
+  }
 }
 ```
 
-### POST /diarize
-Диаризация аудиофайла (разделение на говорящих).
-
-**Параметры:**
-- `file` (multipart/form-data) - аудиофайл для диаризации
-- `min_speakers` (form-data) - минимальное количество говорящих (по умолчанию 1)
-- `max_speakers` (form-data) - максимальное количество говорящих (по умолчанию 10)
+### GET /test-results
+Получение списка всех сохраненных результатов тестов.
 
 **Ответ:**
 ```json
 {
-  "success": true,
-  "total_duration": 1229.8,
-  "num_speakers": 2,
-  "speakers": [
+  "results": [
     {
-      "speaker_id": "SPEAKER_00",
-      "total_duration": 600.5,
-      "segments_count": 15
-    },
-    {
-      "speaker_id": "SPEAKER_01", 
-      "total_duration": 629.3,
-      "segments_count": 12
-    }
-  ],
-  "segments": [
-    {
-      "speaker": "SPEAKER_00",
-      "start": 0.0,
-      "end": 5.2,
-      "duration": 5.2
+      "filename": "test_0001_18.10.2025_22.47.json",
+      "test_number": "0001",
+      "timestamp": "2025-10-18T20:01:11",
+      "original_filename": "audio_file.mp3",
+      "duration": 34.58
     }
   ]
 }
 ```
 
-### POST /transcribe_with_diarization
-Транскрибация с диаризацией (комбинированный эндпоинт).
+### GET /test-results/{test_number}
+Получение конкретного результата теста по номеру.
 
-**Параметры:**
-- `file` (multipart/form-data) - аудиофайл для обработки
-- `language` (form-data) - язык для распознавания (по умолчанию "ru")
-- `min_speakers` (form-data) - минимальное количество говорящих (по умолчанию 1)
-- `max_speakers` (form-data) - максимальное количество говорящих (по умолчанию 10)
+**Ответ:** Полный JSON результат теста в том же формате, что и `/transcribe`.
 
-**Ответ:**
-```json
-{
-  "success": true,
-  "text": "Полный текст транскрипции...",
-  "language": "ru",
-  "language_probability": 0.99,
-  "duration": 1229.8,
-  "num_speakers": 2,
-  "speakers": [
-    {
-      "speaker_id": "SPEAKER_00",
-      "text": "Текст первого говорящего...",
-      "segments": [
-        {
-          "start": 0.0,
-          "end": 5.2,
-          "text": "Первая фраза"
-        }
-      ]
-    }
-  ],
-  "segments": [
-    {
-      "speaker": "SPEAKER_00",
-      "start": 0.0,
-      "end": 5.2,
-      "text": "Первая фраза"
-    }
-  ]
-}
-```
+## Новые возможности v2.0
 
-### POST /split
-Разделение аудиофайла на части.
+- ✅ **Модульная архитектура** - код разделен на логические модули
+- ✅ **Автоматическая нарезка** - файлы больше 10 минут нарезаются автоматически
+- ✅ **Структурированный вывод** - текст разделяется на параграфы
+- ✅ **Сохранение тестов** - результаты автоматически сохраняются в JSON
+- ✅ **Персистентный счетчик** - номера тестов сохраняются между перезапусками
+- ✅ **Готовность к n8n** - API оптимизирован для интеграции с n8n
+- ✅ **Railway готовность** - полная поддержка развертывания на Railway
 
-**Параметры:**
-- `file` (multipart/form-data) - аудиофайл для разделения
-- `segment_sec` (form-data) - длительность сегмента в секундах (по умолчанию 600)
+## Поддерживаемые форматы
 
-**Ответ:**
-```json
-{
-  "success": true,
-  "total_duration": 1800.0,
-  "segment_duration": 600,
-  "num_segments": 3,
-  "segments": [
-    {
-      "segment_number": 1,
-      "start_time": 0.0,
-      "end_time": 600.0,
-      "duration": 600.0,
-      "data": "base64_encoded_audio_data...",
-      "filename": "segment_1.mp3"
-    }
-  ]
-}
-```
+- **Аудио:** MP3, WAV, M4A, AAC, FLAC, OGG, WMA, AIFF, AU
+- **Языки:** Русский (по умолчанию), английский, испанский, французский, немецкий и другие
 
-## Переменные окружения
+## Модели Whisper
 
-- `WHISPER_MODEL` - модель Whisper для использования (по умолчанию "small")
-- `COMPUTE_TYPE` - тип вычислений (по умолчанию "int8")
-- `PORT` - порт для запуска сервера (по умолчанию 8000)
+Доступные модели (настраиваются через переменную окружения `WHISPER_MODEL`):
 
-## Доступные модели Whisper
-
-- `tiny` - самая быстрая, наименьшая точность
+- `tiny` - самая быстрая, низкая точность
 - `base` - быстрая, хорошая точность
 - `small` - сбалансированная скорость и точность (рекомендуется)
 - `medium` - медленная, высокая точность
 - `large` - самая медленная, максимальная точность
+
+## Структура проекта
+
+```
+transcripter/
+├── app.py                 # Главный файл приложения
+├── src/                   # Исходный код
+│   ├── api/              # API маршруты
+│   │   └── routes.py     # Определение эндпоинтов
+│   ├── models/           # Модели данных
+│   │   └── transcription.py
+│   ├── services/         # Бизнес-логика
+│   │   ├── audio_service.py    # Сервис обработки аудио
+│   │   └── test_service.py     # Сервис работы с тестами
+│   └── utils/            # Утилиты
+│       ├── file_parser.py      # Парсинг файлов и текста
+│       └── test_counter.py     # Управление счетчиком тестов
+├── test_result/          # Результаты тестов
+├── requirements.txt      # Зависимости Python
+├── Dockerfile           # Конфигурация Docker
+└── README.md           # Документация
+```
 
 ## Локальный запуск
 
@@ -193,171 +150,88 @@ sudo apt install ffmpeg
 ```
 
 **Windows:**
-Скачайте с [официального сайта](https://ffmpeg.org/download.html) и добавьте в PATH.
-
-### Запуск
-
-1. Клонируйте репозиторий:
 ```bash
-git clone <your-repo-url>
-cd transcripter
+choco install ffmpeg
 ```
 
-2. Создайте виртуальное окружение:
+### Установка и запуск
+
+1. **Клонируйте репозиторий:**
+```bash
+git clone https://github.com/your-username/audio-transcripter.git
+cd audio-transcripter
+```
+
+2. **Создайте виртуальное окружение:**
 ```bash
 python -m venv venv
-source venv/bin/activate  # На Windows: venv\Scripts\activate
+source venv/bin/activate  # Linux/macOS
+# или
+venv\Scripts\activate     # Windows
 ```
 
-3. Установите зависимости:
+3. **Установите зависимости:**
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Запустите приложение:
+4. **Запустите сервис:**
 ```bash
 python app.py
 ```
 
-Приложение будет доступно по адресу: http://localhost:8000
+Сервис будет доступен по адресу: http://localhost:8000
 
-### Тестирование API
+## Переменные окружения
 
-**Проверка здоровья:**
-```bash
-curl http://localhost:8000/health
-```
+- `WHISPER_MODEL` - модель Whisper (по умолчанию: "small")
+- `COMPUTE_TYPE` - тип вычислений (по умолчанию: "int8")
+- `PORT` - порт сервера (по умолчанию: 8000)
 
-**Транскрибация:**
-```bash
-curl -X POST "http://localhost:8000/transcribe" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@your_audio_file.mp3" \
-  -F "language=ru"
-```
-
-**Разделение аудио:**
-```bash
-curl -X POST "http://localhost:8000/split" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@your_audio_file.mp3" \
-  -F "segment_sec=300"
-```
-
-## Деплой на Railway
-
-### Метод 1: Через GitHub (Рекомендуется)
-
-1. Загрузите код в GitHub репозиторий
-2. Зайдите на [Railway](https://railway.app)
-3. Нажмите "New Project" → "Deploy from GitHub repo"
-4. Выберите ваш репозиторий
-5. Railway автоматически определит Python проект и использует ваш Dockerfile
-6. Настройте переменные окружения в настройках проекта:
-   - `WHISPER_MODEL`: `small` (или другую модель)
-   - `COMPUTE_TYPE`: `int8`
-
-**Важно:** Проект уже содержит исправленный Dockerfile с необходимыми системными зависимостями для PyAV.
-
-### Метод 2: Через Railway CLI
-
-1. Установите Railway CLI:
-```bash
-npm install -g @railway/cli
-```
-
-2. Войдите в аккаунт:
-```bash
-railway login
-```
-
-3. Инициализируйте проект:
-```bash
-railway init
-```
-
-4. Задеплойте:
-```bash
-railway up
-```
-
-### Настройка переменных окружения на Railway
-
-В панели управления Railway:
-1. Перейдите в Settings → Variables
-2. Добавьте переменные:
-   - `WHISPER_MODEL` = `small`
-   - `COMPUTE_TYPE` = `int8`
-
-## Деплой на других платформах
-
-### Docker
+## Docker
 
 ```bash
 # Сборка образа
-docker build -t whisper-api .
+docker build -t audio-transcripter .
 
 # Запуск контейнера
-docker run -p 8000:8000 -e WHISPER_MODEL=small whisper-api
+docker run -p 8000:8000 audio-transcripter
 ```
 
-### Heroku
+## Развертывание
 
-1. Создайте `Procfile`:
-```
-web: uvicorn app:app --host 0.0.0.0 --port $PORT
-```
+### Railway
+См. [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) для подробной инструкции.
 
-2. Добавьте buildpack для ffmpeg:
+### Другие платформы
+- **Render:** Поддерживается через Dockerfile
+- **Fly.io:** Поддерживается через Dockerfile
+- **Heroku:** Поддерживается через Dockerfile
+
+## Интеграция с n8n
+
+См. [N8N_INTEGRATION.md](N8N_INTEGRATION.md) для подробной инструкции по интеграции с n8n.
+
+## Тестирование
+
 ```bash
-heroku buildpacks:add https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git
-heroku buildpacks:add heroku/python
+# Проверка health endpoint
+curl http://localhost:8000/health
+
+# Тест транскрибации
+curl -X POST "http://localhost:8000/transcribe" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@test-audio.m4a" \
+  -F "language=ru"
+
+# Получение результатов тестов
+curl http://localhost:8000/test-results
 ```
-
-3. Задеплойте:
-```bash
-git push heroku main
-```
-
-## Производительность
-
-- **Модель `small`** рекомендуется для большинства случаев
-- **`int8`** compute type обеспечивает хорошую производительность на CPU
-- Первый запрос может быть медленным из-за загрузки модели
-- Последующие запросы работают значительно быстрее
-
-## Поддерживаемые форматы аудио
-
-- MP3
-- WAV
-- M4A
-- FLAC
-- OGG
-- И другие форматы, поддерживаемые ffmpeg
-
-## Ограничения
-
-- Максимальный размер файла зависит от платформы деплоя
-- Railway: обычно до 100MB
-- Для больших файлов используйте эндпоинт `/split`
-
-## Устранение неполадок
-
-### Ошибка "ffmpeg not found"
-Убедитесь, что ffmpeg установлен и доступен в PATH.
-
-### Медленная работа
-- Используйте модель `tiny` или `base` для ускорения
-- Установите `COMPUTE_TYPE=int8`
-
-### Ошибки памяти
-- Используйте модель меньшего размера
-- Разделяйте большие файлы на части
 
 ## Лицензия
 
 MIT License
 
-## Вклад в проект
+## Поддержка
 
-Приветствуются pull requests и issues!
+Если у вас возникли вопросы или проблемы, создайте issue в репозитории.
