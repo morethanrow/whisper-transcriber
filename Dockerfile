@@ -23,11 +23,14 @@ COPY requirements.txt .
 # Устанавливаем Python зависимости
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем код приложения
-COPY app.py .
+# Копируем весь код приложения
+COPY . .
 
-# Открываем порт
-EXPOSE 8000
+# Создаем директорию для результатов тестов
+RUN mkdir -p test_result
+
+# Открываем порт (Railway автоматически устанавливает PORT)
+EXPOSE $PORT
 
 # Запускаем приложение
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "app.py"]
