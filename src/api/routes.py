@@ -98,6 +98,19 @@ def create_routes(audio_service: AudioService, test_service: TestService, whispe
                     os.unlink(temp_file_path)
             
         except Exception as e:
+            # Анализируем тип ошибки для более точного HTTP статуса
+            error_message = str(e)
+            status_code = 500
+            
+            if "File must be an audio file" in error_message:
+                status_code = 400
+            elif "FFmpeg failed" in error_message:
+                status_code = 422  # Unprocessable Entity
+            elif "No such file" in error_message or "Permission denied" in error_message:
+                status_code = 400
+            elif "timeout" in error_message.lower() or "time limit" in error_message.lower():
+                status_code = 408  # Request Timeout
+            
             # Возвращаем ошибку в новом формате
             error_result = TranscriptionResult(
                 filename=file.filename or "unknown",
@@ -106,9 +119,9 @@ def create_routes(audio_service: AudioService, test_service: TestService, whispe
                 model=f"whisper-{whisper_model}:{compute_type}",
                 status="error",
                 error_code="TRANSCRIPTION_FAILED",
-                error_message=str(e)
+                error_message=error_message
             )
-            raise HTTPException(status_code=500, detail=error_result.to_dict())
+            raise HTTPException(status_code=status_code, detail=error_result.to_dict())
     
     @router.get("/test-results")
     async def get_test_results():

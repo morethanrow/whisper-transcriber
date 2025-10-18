@@ -75,11 +75,28 @@ class AudioService:
             if result.returncode == 0:
                 segments.append(segment_path)
             else:
-                print(f"Failed to create segment {i+1}: {result.stderr}")
+                # Анализируем конкретную ошибку FFmpeg
+                stderr = result.stderr
+                error_details = f"Segment {i+1} creation failed"
+                
+                if "Invalid audio stream" in stderr:
+                    error_details += ": Invalid audio format - cannot convert AAC to MP3"
+                elif "Could not write header" in stderr:
+                    error_details += ": Audio codec incompatibility"
+                elif "No such file or directory" in stderr:
+                    error_details += ": Input file not found or inaccessible"
+                elif "Permission denied" in stderr:
+                    error_details += ": File permission error"
+                else:
+                    error_details += f": {stderr[:200]}..."  # Первые 200 символов ошибки
+                
+                print(f"Failed to create segment {i+1}: {error_details}")
+                
                 # Удаляем частично созданный файл
                 if os.path.exists(segment_path):
                     os.unlink(segment_path)
-                raise Exception(f"FFmpeg failed to create segment {i+1}: {result.stderr}")
+                
+                raise Exception(f"FFmpeg failed to create segment {i+1}: {error_details}")
         
         if not segments:
             raise Exception("Failed to create any audio segments")
@@ -194,12 +211,40 @@ class AudioService:
             )
             
         except Exception as e:
+            error_message = str(e)
+            error_code = "TRANSCRIPTION_FAILED"
+            
+            # Определяем конкретный тип ошибки
+            if "FFmpeg failed" in error_message:
+                error_code = "FFMPEG_CONVERSION_ERROR"
+                if "Invalid audio stream" in error_message:
+                    error_message = "Audio format conversion failed. The file may be corrupted or in an unsupported format."
+                elif "Could not write header" in error_message:
+                    error_message = "Failed to create audio segment. The source audio format is incompatible."
+                else:
+                    error_message = f"Audio processing failed: {error_message}"
+            
+            elif "Segment file" in error_message and "was not created" in error_message:
+                error_code = "SEGMENT_CREATION_FAILED"
+                error_message = "Failed to create audio segments for processing. The file may be too large or corrupted."
+            
+            elif "Failed to transcribe segment" in error_message:
+                error_code = "SEGMENT_TRANSCRIPTION_FAILED"
+                error_message = f"Transcription failed for audio segment: {error_message}"
+            
+            elif "Failed to create any audio segments" in error_message:
+                error_code = "NO_SEGMENTS_CREATED"
+                error_message = "Unable to process the audio file. Please check if the file is valid and not corrupted."
+            
+            else:
+                error_message = f"Transcription failed: {error_message}"
+            
             return TranscriptionResult(
                 filename=filename,
                 recorded_at=recorded_at,
                 duration_sec=0,
                 model=model_name,
                 status="error",
-                error_code="TRANSCRIPTION_FAILED",
-                error_message=str(e)
+                error_code=error_code,
+                error_message=error_message
             )
