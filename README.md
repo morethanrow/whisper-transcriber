@@ -5,6 +5,8 @@
 ## Возможности
 
 - 🎵 **Транскрибация аудио** - преобразование аудиофайлов в текст
+- 👥 **Диаризация** - разделение речи на говорящих (speaker diarization)
+- 🔗 **Комбинированная обработка** - транскрибация с определением говорящих
 - ✂️ **Разделение аудио** - нарезка больших файлов на части с помощью ffmpeg
 - 🌍 **Многоязычность** - поддержка различных языков (по умолчанию русский)
 - 🚀 **Готов к деплою** - оптимизирован для Railway и других облачных платформ
@@ -20,7 +22,8 @@
 {
   "ok": true,
   "model": "small",
-  "compute_type": "int8"
+  "compute_type": "int8",
+  "diarization_available": true
 }
 ```
 
@@ -46,6 +49,85 @@
   "language": "ru",
   "language_probability": 0.99,
   "duration": 30.5
+}
+```
+
+### POST /diarize
+Диаризация аудиофайла (разделение на говорящих).
+
+**Параметры:**
+- `file` (multipart/form-data) - аудиофайл для диаризации
+- `min_speakers` (form-data) - минимальное количество говорящих (по умолчанию 1)
+- `max_speakers` (form-data) - максимальное количество говорящих (по умолчанию 10)
+
+**Ответ:**
+```json
+{
+  "success": true,
+  "total_duration": 1229.8,
+  "num_speakers": 2,
+  "speakers": [
+    {
+      "speaker_id": "SPEAKER_00",
+      "total_duration": 600.5,
+      "segments_count": 15
+    },
+    {
+      "speaker_id": "SPEAKER_01", 
+      "total_duration": 629.3,
+      "segments_count": 12
+    }
+  ],
+  "segments": [
+    {
+      "speaker": "SPEAKER_00",
+      "start": 0.0,
+      "end": 5.2,
+      "duration": 5.2
+    }
+  ]
+}
+```
+
+### POST /transcribe_with_diarization
+Транскрибация с диаризацией (комбинированный эндпоинт).
+
+**Параметры:**
+- `file` (multipart/form-data) - аудиофайл для обработки
+- `language` (form-data) - язык для распознавания (по умолчанию "ru")
+- `min_speakers` (form-data) - минимальное количество говорящих (по умолчанию 1)
+- `max_speakers` (form-data) - максимальное количество говорящих (по умолчанию 10)
+
+**Ответ:**
+```json
+{
+  "success": true,
+  "text": "Полный текст транскрипции...",
+  "language": "ru",
+  "language_probability": 0.99,
+  "duration": 1229.8,
+  "num_speakers": 2,
+  "speakers": [
+    {
+      "speaker_id": "SPEAKER_00",
+      "text": "Текст первого говорящего...",
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 5.2,
+          "text": "Первая фраза"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "speaker": "SPEAKER_00",
+      "start": 0.0,
+      "end": 5.2,
+      "text": "Первая фраза"
+    }
+  ]
 }
 ```
 
